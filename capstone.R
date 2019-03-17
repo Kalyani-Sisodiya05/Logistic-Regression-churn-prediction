@@ -1,86 +1,43 @@
 \getwd()
-tele<-read.csv("telecomfinal.csv", stringsAsFactors = T)
+tel<-read.csv("telecomfinal.csv", stringsAsFactors = T)
 options(scipen = 999)
 library(dplyr)
 
-names(tele)
-str(tele)
-summary(tele) 
-
+names(tel)
+str(tel)
+summary(tel) 
+dim(tel)
+head(tel)
 
 
 ##---------Creating Data Quality Report(dqr)-----------##
 
-#Extracting Variable names
-Variables<-names(tele)
-dqr<-as.data.frame(Variables)
-rm(Variables)
+library(dataQualityR)
+checkDataQuality(tel,"quality_report_num.csv","quality_report_cat.csv")
+num_report<-read.csv("quality_report_num.csv",header=T)
+cat_report<-read.csv("quality_report_cat.csv",header=T)
 
-#Recording Data Type for each Variable
-dqr$DataType<-sapply(tele,class)
-
-#No. of Records for each Variable
-dqr$No.ofRecords<-nrow(tele)
-
-#Counting No. of Unique Values for each variable
-for(i in 1:ncol(tele))
-{
-  dqr$UniqueRecords[i]<-length(unique(tele[,i]))
-}
-
-#No.of observations available for each variable and its percentage
-dqr$DataAvailable<-colSums(!is.na(tele))
-dqr$AvailablePercentage<-round(colMeans(!is.na(tele)),4)
-
-#Total and Percentage of Missing Values for each Variable
-dqr$Missing<-colSums(is.na(tele))
-dqr$MissingPercentage<-round(colMeans(is.na(tele)),4)
-
-#Minimum, Maximum, Mean, Quantile Values for each Variable
-for(i in 1:ncol(tele))
-{
-  dqr$Minimum[i]<-round(ifelse(class(tele[,i])=="integer"|class(tele[,i])=="numeric",min(tele[,i],na.rm=T),0),2)
-  dqr$Maximum[i]<-round(ifelse(class(tele[,i])=="integer"|class(tele[,i])=="numeric",max(tele[,i],na.rm=T),0),2)
-  dqr$Mean[i]<-round(ifelse(class(tele[,i])=="integer"|class(tele[,i])=="numeric",mean(tele[,i],na.rm=T),0),2)
-  dqr$fifthPercentile[i]<-round(ifelse(class(tele[,i])=="integer"|class(tele[,i])=="numeric",quantile(tele[,i],p=0.05,na.rm=T),0),2)
-  dqr$tenthPercentile[i]<-round(ifelse(class(tele[,i])=="integer"|class(tele[,i])=="numeric",quantile(tele[,i],p=0.10,na.rm=T),0),2)
-  dqr$twentyfifthPercentile[i]<-round(ifelse(class(tele[,i])=="integer"|class(tele[,i])=="numeric",quantile(tele[,i],p=0.25,na.rm=T),0),2)
-  dqr$fiftythPercentile[i]<-round(ifelse(class(tele[,i])=="integer"|class(tele[,i])=="numeric",quantile(tele[,i],p=0.50,na.rm=T),0),2)
-  dqr$seventyfifthPercentile[i]<-round(ifelse(class(tele[,i])=="integer"|class(tele[,i])=="numeric",quantile(tele[,i],p=0.75,na.rm=T),0),2)
-  dqr$ninetythPercentile[i]<-round(ifelse(class(tele[,i])=="integer"|class(tele[,i])=="numeric",quantile(tele[,i],p=0.90,na.rm=T),0),2)
-  dqr$ninetyfifthPercentile[i]<-round(ifelse(class(tele[,i])=="integer"|class(tele[,i])=="numeric",quantile(tele[,i],p=0.95,na.rm=T),0),2)
-}
-
-str(dqr)
-
-#Exporting Data Quality Report
-write.csv(dqr,"Data Quality Report.csv",row.names = F)
 
 
 #Missing Value treatment of var, "retdays" and Creating Dummy Variable
-summary(tele$retdays)
-sort(unique(tele$retdays), na.last = F)
-tele$retdays_1<-ifelse(is.na(tele$retdays)==TRUE, 0, 1)
-str(tele$retdays_1)
-summary(tele$retdays_1)
+summary(tel$retdays)
+sort(unique(tel$retdays), na.last = F)
+tel$retdays_1<-ifelse(is.na(tel$retdays)==TRUE, 0, 1)
+str(tel$retdays_1)
+summary(tel$retdays_1)
 
 
 
 
 #Ommitting variables with more than 15% missing values and creating a new data set
-tele1<-tele[,colMeans(is.na(tele))<=0.15]
+tele1<-tel[,colMeans(is.na(tel))<=0.15]
 
 #Variable drop_blk_Mean is created by adding vars blck_dat_Mean + BLCK_VCE_MEAN + DROP_DAT_MEAN + DROP_VCE_MEAN 
 # So omitting Variable blck_dat_Mean 
 names(tele1)
 tele1<-tele1[,-50]
 
-
-
-
-##**********Data Exploration => Profiling (dat-Continuous Variables , datC-Categorical Variables)**********## 
-
-
+#####VARIABLE PROFILING#######
 ##-------- Deciling Continuous Variables Basis Target Variabe Churn---------##
 
 names(tele1)
@@ -197,12 +154,8 @@ dat11$varname<-rep("totcalls",nrow(dat11))
 
 # <12> Variable "eqpdays"
 summary(tele1$eqpdays)
-
-#Missing Value Treatment - Since there is just 1 missing observation, will remove the same.
-index<-which(is.na(tele1$eqpdays))
+index<-which(is.na(tele1$eqpdays))###rEMOVE MISSING VALUE
 tele1<-tele1[-index,]
-
-#Deciling basis Variable churn 
 tele1%>%mutate(dec=ntile(eqpdays,n=10))%>%count(churn,dec)%>%filter(churn==1)->dat12
 dat12$N<-unclass(tele1%>%mutate(dec=ntile(eqpdays,n=10))%>%count(dec)%>%unname())[[2]]
 dat12$churn_perc<-dat12$n/dat12$N
@@ -211,13 +164,11 @@ dat12$LessThan<-unclass(tele1%>%mutate(dec=ntile(eqpdays,n=10))%>%group_by(dec)%
 dat12$varname<-rep("eqpdays",nrow(dat12))
 
 
-# <13> Variable "custcare_Mean"===>> ***Getting less than 4 deciles. Omit***
+# <13> Variable "custcare_Mean"
 summary(tele1$custcare_Mean)
 tele1%>%mutate(dec=ntile(custcare_Mean,n=4))%>%count(churn,dec)%>%filter(churn==1)->dat13
 dat13$varname<-rep("custcare_Mean",nrow(dat13))
-
 plot(tele1$churn,tele1$custcare_Mean, col="red")
-
 
 
 # <14> Variable "callwait_Mean"
@@ -240,17 +191,15 @@ dat15$LessThan<-unclass(tele1%>%mutate(dec=ntile(iwylis_vce_Mean,n=6))%>%group_b
 dat15$varname<-rep("iwylis_vce_Mean",nrow(dat15))
 
 
-# <16> Variable "callwait_Range"===>> ***Getting less than 4 deciles. Omit***
+# <16> Variable "callwait_Range"
 summary(tele1$callwait_Range)
 tele1%>%mutate(dec=ntile(callwait_Range,n=4))%>%count(churn,dec)%>%filter(churn==1)->dat16
 dat16$varname<-rep("callwait_Range",nrow(dat16))
 
 
-
-# <17> Variable "ccrndmou_Range"===>> ***Getting less than 4 deciles. Omit***
+# <17> Variable "ccrndmou_Range"
 summary(tele1$ccrndmou_Range)
 tele1%>%mutate(dec=ntile(ccrndmou_Range,n=4))%>%count(churn,dec)%>%filter(churn==1)->dat17
-
 
 
 # <18> Variable "adjqty"
@@ -293,7 +242,7 @@ dat21$LessThan<-unclass(tele1%>%mutate(dec=ntile(ovrmou_Mean,n=4))%>%group_by(de
 dat21$varname<-rep("ovrmou_Mean",nrow(dat21))
 
 
-# <22> Variable "comp_vce_Mean" ===>> **** Data Transformation then Delete ****
+# <22> Variable "comp_vce_Mean"
 summary(tele1$comp_vce_Mean)
 tele1%>%mutate(dec=ntile(comp_vce_Mean,n=10))%>%count(churn,dec)%>%filter(churn==1)->dat22
 dat22$N<-unclass(tele1%>%mutate(dec=ntile(comp_vce_Mean,n=10))%>%count(dec)%>%unname())[[2]]
@@ -303,7 +252,7 @@ dat22$LessThan<-unclass(tele1%>%mutate(dec=ntile(comp_vce_Mean,n=10))%>%group_by
 dat22$varname<-rep("comp_vce_Mean",nrow(dat22))
 
 
-# <23> Variable "plcd_vce_Mean" ===>> **** Data Transformation then Delete ****
+# <23> Variable "plcd_vce_Mean"
 summary(tele1$plcd_vce_Mean)
 tele1%>%mutate(dec=ntile(plcd_vce_Mean,n=10))%>%count(churn,dec)%>%filter(churn==1)->dat23
 dat23$N<-unclass(tele1%>%mutate(dec=ntile(plcd_vce_Mean,n=10))%>%count(dec)%>%unname())[[2]]
@@ -373,7 +322,7 @@ dat29$LessThan<-unclass(tele1%>%mutate(dec=ntile(avg6qty,n=10))%>%group_by(dec)%
 dat29$varname<-rep("avg6qty",nrow(dat29))
 
 
-# <30> Variable "age1" =====>>****Use As Factor****
+# <30> Variable "age1" 
 summary(tele1$age1)
 tele1%>%mutate(dec=ntile(age1,n=6))%>%count(churn,dec)%>%filter(churn==1)->dat30
 dat30$N<-unclass(tele1%>%mutate(dec=ntile(age1,n=6))%>%count(dec)%>%unname())[[2]]
@@ -383,19 +332,19 @@ dat30$LessThan<-unclass(tele1%>%mutate(dec=ntile(age1,n=6))%>%group_by(dec)%>%su
 dat30$varname<-rep("age1",nrow(dat30))
 
 
-# <31> Variable "age2"===>> ***Getting less than 4 deciles. Use As Factor***
+# <31> Variable "age2"
 summary(tele1$age2)
 tele1%>%mutate(dec=ntile(age2,n=4))%>%count(churn,dec)%>%filter(churn==1)->dat31
 dat31$varname<-rep("age2",nrow(dat31))
 
 
-# <32> Variable "models" ===>> ***Getting less than 4 deciles. Factor Variable***
+# <32> Variable "models" 
 summary(tele1$models)
 tele1%>%mutate(dec=ntile(models,n=4))%>%count(churn,dec)%>%filter(churn==1)->dat32
 dat32$varname<-rep("models",nrow(dat32))
 
 
-# <33> Variable "hnd_price" =====>> ****** Use as Factor Variable*****
+# <33> Variable "hnd_price"
 summary(tele1$hnd_price)
 tele1%>%mutate(dec=ntile(hnd_price,n=10))%>%count(churn,dec)%>%filter(churn==1)->dat33
 dat33$N<-unclass(tele1%>%mutate(dec=ntile(hnd_price,n=10))%>%count(dec)%>%unname())[[2]]
@@ -405,55 +354,55 @@ dat33$LessThan<-unclass(tele1%>%mutate(dec=ntile(hnd_price,n=10))%>%group_by(dec
 dat33$varname<-rep("hnd_price",nrow(dat33))
 
 
-# <34> Variable "actvsubs" ===>> ***Factor Variable***
+# <34> Variable "actvsubs"
 summary(tele1$actvsubs)
 tele1%>%mutate(dec=ntile(actvsubs,n=4))%>%count(churn,dec)%>%filter(churn==1)->dat34
 dat34$varname<-rep("actvsubs",nrow(dat34))
 
 
-# <35> Variable "uniqsubs" ===>> ***Factor Variable***
+# <35> Variable "uniqsubs" 
 summary(tele1$uniqsubs)
 tele1%>%mutate(dec=ntile(uniqsubs,n=4))%>%count(churn,dec)%>%filter(churn==1)->dat35
 dat35$varname<-rep("uniqsubs",nrow(dat35))
 
 
-# <36> Variable "forgntvl" ===>> ***Factor Variable***
+# <36> Variable "forgntvl"
 summary(tele1$forgntvl)
 tele1%>%mutate(dec=ntile(forgntvl,n=4))%>%count(churn,dec)%>%filter(churn==1)->dat36
 dat36$varname<-rep("forgntvl",nrow(dat36))
 
 
-# <37> Variable "opk_dat_Mean" ===>> ***Omit***
+# <37> Variable "opk_dat_Mean"
 summary(tele1$opk_dat_Mean)
 tele1%>%mutate(dec=ntile(opk_dat_Mean,n=4))%>%count(churn,dec)%>%filter(churn==1)->dat37
 dat37$varname<-rep("opk_dat_Mean",nrow(dat37))
 
 
-# <38> Variable "mtrcycle" ===>> ***Factor variable***
+# <38> Variable "mtrcycle"
 summary(tele1$mtrcycle)
 tele1%>%mutate(dec=ntile(mtrcycle,n=4))%>%count(churn,dec)%>%filter(churn==1)->dat38
 dat38$varname<-rep("mtrcycle",nrow(dat38))
 
 
-# <39> Variable "truck" ===>> ***Factor variable***
+# <39> Variable "truck" 
 summary(tele1$truck)
 tele1%>%mutate(dec=ntile(truck,n=4))%>%count(churn,dec)%>%filter(churn==1)->dat39
 dat39$varname<-rep("truck",nrow(dat39))
 
 
-# <40> Variable "roam_Mean" ===>> ***Getting less than 4 deciles. So Omit***
+# <40> Variable "roam_Mean" 
 summary(tele1$roam_Mean)
 tele1%>%mutate(dec=ntile(roam_Mean,n=4))%>%count(churn,dec)%>%filter(churn==1)->dat40
 dat40$varname<-rep("roam_Mean",nrow(dat40))
 
 
-# <41> Variable "recv_sms_Mean" ===>> ***Getting less than 4 deciles. So Omit***
+# <41> Variable "recv_sms_Mean"
 summary(tele1$recv_sms_Mean)
 tele1%>%mutate(dec=ntile(recv_sms_Mean,n=4))%>%count(churn,dec)%>%filter(churn==1)->dat41
 dat41$varname<-rep("recv_sms_Mean",nrow(dat41))
 
 
-# <42> Variable "mou_pead_Mean" ===>> ***Getting less than 4 deciles. So Omit***
+# <42> Variable "mou_pead_Mean" 
 summary(tele1$mou_pead_Mean)
 tele1%>%mutate(dec=ntile(mou_pead_Mean,n=4))%>%count(churn,dec)%>%filter(churn==1)->dat42
 dat42$varname<-rep("mou_pead_Mean",nrow(dat42))
@@ -479,20 +428,19 @@ dat44$LessThan<-unclass(tele1%>%mutate(dec=ntile(da_Range,n=4))%>%group_by(dec)%
 dat44$varname<-rep("da_Range",nrow(dat44))
 
 
-# <45> Variable "datovr_Mean" ===>> ***Getting less than 4 deciles. So Omit***
+# <45> Variable "datovr_Mean" ===>> 
 summary(tele1$datovr_Mean)
 tele1%>%mutate(dec=ntile(datovr_Mean,n=4))%>%count(churn,dec)%>%filter(churn==1)->dat45
 dat45$varname<-rep("datovr_Mean",nrow(dat45))
 
 
-# <46> Variable "datovr_Range" ===>> ***Getting less than 4 deciles. So Omit***
+# <46> Variable "datovr_Range" ===>> 
 summary(tele1$datovr_Range)
 tele1%>%mutate(dec=ntile(datovr_Range,n=4))%>%count(churn,dec)%>%filter(churn==1)->dat46
 dat46$varname<-rep("datovr_Range",nrow(dat46))
 
 
-# <47> Variable "drop_dat_Mean" ===>> ***Getting less than 4 deciles. 
-#And almost 95% data has values 0. So Omit***
+# <47> Variable "drop_dat_Mean" ===>>  
 summary(tele1$drop_dat_Mean)
 tele1%>%mutate(dec=ntile(drop_dat_Mean,n=4))%>%count(churn,dec)%>%filter(churn==1)->dat47
 dat47$varname<-rep("drop_dat_Mean",nrow(dat47))
@@ -548,22 +496,18 @@ dat52$LessThan<-unclass(tele1%>%mutate(dec=ntile(avgrev,n=10))%>%group_by(dec)%>
 dat52$varname<-rep("avgrev",nrow(dat52))
 
 
-# <53> Variable "comp_dat_Mean" ===>> ***Data Transformation then omit***
+# <53> Variable "comp_dat_Mean"
 summary(tele1$comp_dat_Mean)
 tele1%>%mutate(dec=ntile(comp_dat_Mean,n=4))%>%count(churn,dec)%>%filter(churn==1)->dat53
 dat53$varname<-rep("comp_dat_Mean",nrow(dat53))
 
 
-# <54> Variable "plcd_dat_Mean" ====>> ****Data Transformation then omit****
+# <54> Variable "plcd_dat_Mean"
 summary(tele1$plcd_dat_Mean)
 tele1%>%mutate(dec=ntile(plcd_dat_Mean,n=4))%>%count(churn,dec)%>%filter(churn==1)->dat54
 
 
-
-
-## **** Data Transformation. Creating Dummy Variables **** ##
-
-#<55> Create Dummy Variable plcd_Atempt_Mean and Deciling
+#<55> Create Dummy Variable plcd_Atempt_Mean 
 tele1$plcd_attempt_Mean<-tele1$plcd_vce_Mean+tele1$plcd_dat_Mean
 
 summary(tele1$plcd_attempt_Mean)
@@ -575,7 +519,7 @@ dat55$LessThan<-unclass(tele1%>%mutate(dec=ntile(plcd_attempt_Mean,n=10))%>%grou
 dat55$varname<-rep("plcd_attempt_Mean",nrow(dat55))
 
 
-#<56> Create Dummy Variable complete_Mean and Deciling
+#<56> Create Dummy Variable complete_Mean 
 tele1$complete_Mean<-tele1$comp_vce_Mean+tele1$comp_dat_Mean
 
 summary(tele1$complete_Mean)
@@ -595,19 +539,14 @@ dat<-rbind(dat1,dat2,dat3,dat4,dat5,dat6,dat7,dat8,dat9,dat10,dat11,dat12,dat14,
 #Exporting Deciled variables
 write.csv(dat,"Deciled Usable Continuous variables.csv",row.names = F)
 
-
-#Removing Variables that could not be deciled as will come insignificant in the model
-#Also omitting transformed Vars "comp_vce_Mean" ,"comp_dat_Mean", "plcd_vce_Mean", plcd_dat_Mean
 names(tele1)
-tele1<-tele1[,-c(13,16,17,22,23,45,48:50,56:58,65,66)]
+tele1<-tele1[,-c(13,14,15,16,17,19,21,22,23,45,48:50,56:58,65,66)]#remove variable which has less decile and also delete ver which tranformed
 names(tele1)
 
 
 ##-------- Categorical Variables---------##
 
-##-----Event rate for each level in a categorical variable-----##
-
-# <19> Variable "crclscod" =====>>> **** Some Levels show less than 5% churn rate. So Omit as will come insignificant ****  
+# <19> Variable "crclscod" =====>>> 
 summary(tele1$crclscod)
 tele1%>%count(churn,levels=crclscod)%>%filter(churn==1)->datC19
 datC19$N<-unclass(tele1%>%filter(crclscod%in%datC19$levels)%>%count(crclscod))[[2]]
@@ -679,7 +618,7 @@ datC27$ChurnPerc<-datC27$n/datC27$N
 datC27$Var.Name<-rep("car_buy",nrow(datC27))
 
 
-# <28> Variable "csa" ===>>> **** Some Levels show less than 5% churn rate. So Omit as will come insignificant **** 
+# <28> Variable "csa"
 summary(tele1$csa)
 tele1%>%count(churn,levels=csa)%>%filter(churn==1)->datC28
 datC28$N<-unclass(tele1%>%filter(csa%in%datC28$levels)%>%count(csa))[[2]]
@@ -776,7 +715,7 @@ write.csv(datC_2,"Event Rate - Categorical variables2.csv",row.names = F)
 
 #Removing Variables with levels less than 5% churn rate as will come insignificant
 names(tele1)
-tele1<-tele1[,-c(25,44)]
+tele1<-tele1[,-c(21,40)]
 names(tele1)
 
 
@@ -790,29 +729,20 @@ names(tele1)
 summary(tele1)
 str(tele1)
 
-#Factor Variables=> asl_flag, prizm_social_one, area, refurb_new, hnd_webcap, 
-#marital, ethnic, age1, age2, models, hnd_price, actvsubs, "uniqsubs", 
-#"forgntvl", "mtrcycle", "truck", churn, car_buy, Customer_ID, retdays_1
-
 str(tele1)
 list<-names(tele1)
 list
 # Removing Categorical Variables
-list<-list[-c(25:42,50,51)]
+list<-list[-c(21:38,46,47)]
 list
 
 # Outlier Plots
-par(mfrow=c(3,11))
+par(mfrow=c(2,5))
+par(mar=c(1,1,1,1))
 for(i in 1:length(list))
 {
   boxplot(tele1[,list[i]],main=list[i])
 }
-
-for(i in 1:length(list))
-{
-  plot(tele1[,list[i]],main=list[i])
-}
-
 
 # Outlier Treatment
 for(i in 1:length(list))
@@ -825,46 +755,27 @@ for(i in 1:length(list))
   rm(out)
 }
 
-
 # Checking After Treatment
-
 for(i in 1:length(list))
 {
   boxplot(tele1[,list[i]],main=list[i])
 }
-
-for(i in 1:length(list))
-{
-  plot(tele1[,list[i]],main=list[i])
-}
-
-dev.off()
-
 
 
 #-----Missing Value Treatment -------# 
 
 summary(tele1)
 names(tele1)
-
-# Factor Variables=> crclscod, asl_flag, prizm_social_one, area, refurb_new, hnd_webcap, marital, ethnic, "age1", 
-#    "age2", "models", "hnd_price","actvsubs", "uniqsubs", "forgntvl", "mtrcycle", "truck", car_buy, csa retdays_1
-
-
 # Deleting Missing Values
 index1<-which(is.na(tele1[,c(1:5)]))
 tele1<-tele1[-index1,]
 summary(tele1)
 
-index2<-which(is.na(tele1$change_mou))
-tele1<-tele1[-index2,]
+tele1<-tele1[!is.na(tele1$area),]
+summary(tele1$area)
 
-index4<-which(is.na(tele1$area))
-tele1<-tele1[-index4,]
-
-index5<-which(is.na(tele1$marital))
-tele1<-tele1[-index5,]
-summary(tele1)
+tele1<-tele1[!is.na(tele1$marital),]
+summary(tele1$marital)
 
 
 # Mean Imputation
@@ -888,7 +799,7 @@ tele1$prizm_social_one_1<-factor(tele1$prizm_social_one_1,labels =c("C","R","S",
 summary(tele1$prizm_social_one_1)
 
 names(tele1)
-tele1<-tele1[,-26]
+tele1<-tele1[,-22]
 summary(tele1)
 
 
@@ -903,22 +814,10 @@ tele1$hnd_webcap_1<-factor(tele1$hnd_webcap_1,labels =c("UNKW","WC","WCMB","Miss
 summary(tele1$hnd_webcap_1)
 
 names(tele1)
-tele1<-tele1[,-28]
+tele1<-tele1[,-24]
 summary(tele1)
 
-
-
-
-#Checking Churn Rate in the data after Imputations
-table(tele$churn)/nrow(tele)
-table(tele1$churn)/nrow(tele1)
-
-
-
-# Convert to Factor and Create Dummy Variables => 
 #age1, age2, models, hnd_price, actvsubs,uniqsubs, forgntvl, mtrcycle, truck, Customer ID, Churn
-
-
 str(tele1$age1)
 tele1$age1_1<-ifelse(tele1$age1==0,"Default",ifelse(tele1$age1<=30,"Young",
                                                     ifelse(tele1$age1>30 & tele1$age1<=55,"Mid Age","Old")))
@@ -927,7 +826,7 @@ tele1$age1_1<-as.factor(tele1$age1_1)
 summary(tele1$age1_1)
 
 names(tele1)
-tele1<-tele1[,-30]
+tele1<-tele1[,-26]
 summary(tele1)
 
 
@@ -940,7 +839,7 @@ tele1$age2_1<-as.factor(tele1$age2_1)
 summary(tele1$age2_1)
 
 names(tele1)
-tele1<-tele1[,-30]
+tele1<-tele1[,-26]
 summary(tele1)
 
 
@@ -991,30 +890,19 @@ summary(tele1$truck)
 ### ********** Logistic Regression Model Building ********** ###
 
 # Splitting into Test and Training Samples
-set.seed(200)
+set.seed(1000)
 index<-sample(nrow(tele1),0.70*nrow(tele1),replace=F)
 train<-tele1[index,]
 test<-tele1[-index,]
-
-
-#Checking Churn Rate 
-table(train$churn)/nrow(train)
-table(test$churn)/nrow(test)
 
 names(tele1)
 
 
 # Building Logistic Regression Model after excluding var "Customer_ID" 
-mod<-glm(churn~.,data=train[,-46],family="binomial")
+mod<-glm(churn~.,data=train[,-42],family="binomial")
 summary(mod)
 
-
-
-# Step wise Regression Model ===>> Each Step Takes Atleat 1/2 Hour and the system shuts down in 3 hrs,
-#                                 before the process completes...Also showing extensive memory issues.
-#                                 So cannot use the method. Doing Manually..
-step(mod,direction = "both")
-
+step(mod,direction = "both")## this will take time so we can done it manually
 
 
 ## ***** Creating Dummy Vars for Factor Vars with significant levels ***** ##
